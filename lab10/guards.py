@@ -48,22 +48,63 @@ def write_gate(ctx, action):
     order = ctx.tools.lookup_order(action.get("order_id"))
     pol = H.effective_policy(ctx.tools.lookup_policies(), ctx.as_of)
 
+    if tool in ("issue_refund", "file_carrier_fault"):
+        if action.get("ticket_id") != ctx.ticket.get("ticket_id") or action.get("order_id") != ctx.ticket.get("order_id"):
+            return Verdict.escalate("lệnh ghi không khớp ticket hoặc đơn hàng")
+        if order and order.get("customer_id") != ctx.ticket.get("customer_id"):
+            return Verdict.escalate("đơn hàng không thuộc khách trong ticket")
+
     if tool == "issue_refund":
         if not order or not pol:
             return Verdict.escalate("thiếu dữ liệu đơn hàng hoặc chính sách")
         parcel = H.ticket_parcel(order, ctx.ticket, ctx.as_of)
+        if not parcel:
+            return Verdict.escalate("thiếu kiện hàng để đối chiếu")
         delay = H.db_delay_days(parcel, ctx.as_of)
         entitled = H.entitlement_vnd(pol, order, delay, parcel.get("delay_cause"))
 
+        amount = action.get("amount_vnd")
+        if not isinstance(amount, int) or amount <= 0:
+            return Verdict.deny("số tiền hoàn không hợp lệ")
+        if ctx.tools.ledger_rows(ticket_id=ctx.ticket["ticket_id"], order_id=order["order_id"]):
+            return Verdict.deny("ticket đã có khoản hoàn; không ghi trùng")
+        approval_id = action.get("approval_id")
+        if amount > pol["auto_limit_vnd"] and not approval_id:
+            return Verdict.escalate("vượt hạn mức tự động, cần phê duyệt")
+        if approval_id:
+            approvals = ctx.tools.lookup_approvals(approval_id=approval_id)
+            approval = approvals[0] if approvals else None
+            if (not approval or approval.get("status") != "valid"
+                    or approval.get("ticket_id") != ctx.ticket["ticket_id"]
+                    or approval.get("order_id") != order["order_id"]
+                    or approval.get("customer_id") != order["customer_id"]
+                    or (ctx.gates.get("operations", {}).get("approver_id")
+                        and approval.get("approver_id") != ctx.gates["operations"]["approver_id"])
+                    or approval.get("max_vnd", 0) < amount
+                    or approval.get("expires_at", "") < ctx.as_of):
+                return Verdict.escalate("phê duyệt không hợp lệ cho khoản hoàn này")
+        if action.get("payer", "LOGIX") != "LOGIX" and not approval_id:
+            return Verdict.escalate("đổi bên chịu tiền cần phê duyệt hợp lệ")
+
         # Cổng 2 (Vòng 1): Chặn hoàn tiền vượt quá quyền lợi tính từ tracking DB (chống model override từ lời khai khách)
-        if action.get("amount_vnd", 0) > entitled:
+        if amount > entitled:
             return Verdict.deny("vượt quyền lợi theo tracking DB")
 
     elif tool == "file_carrier_fault":
         if not order or not pol:
             return Verdict.deny("thiếu dữ liệu đơn hàng hoặc chính sách")
         parcel = H.ticket_parcel(order, ctx.ticket, ctx.as_of)
+        if not parcel:
+            return Verdict.deny("thiếu kiện hàng để đối chiếu")
         delay = H.db_delay_days(parcel, ctx.as_of)
+
+        if (action.get("parcel_id") != parcel.get("parcel_id")
+                or action.get("carrier_id") != parcel.get("carrier_id")
+                or action.get("driver_id") != parcel.get("driver_id")
+                or action.get("delay_days") != delay):
+            return Verdict.deny("lệnh ghi lỗi hãng không khớp tracking của đúng kiện")
+        if ctx.tools.fault_rows(ticket_id=ctx.ticket["ticket_id"], parcel_id=parcel["parcel_id"]):
+            return Verdict.deny("ticket đã có bản ghi lỗi hãng cho kiện này")
 
         # Cổng 3 (Vòng 1): Kiểm tra điều kiện quy lỗi cho hãng theo tracking DB và chính sách
         if not H.carrier_at_fault(pol, parcel, delay):

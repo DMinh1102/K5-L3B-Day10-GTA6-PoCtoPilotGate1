@@ -1,12 +1,15 @@
 {
-  "team": "GTA6",
-  "members": [],
-  "incident": "",
-  "decision_v1": "",
-  "decision_v2": "",
+  "team": "K5-L3B-Day10-GTA6-PoCtoPilotGate1",
+  "members": [
+    "DangDucMinh-2A202603886",
+    "PhamQuocHuy-2A202603897"
+  ],
+  "incident": "S4",
+  "decision_v1": "Tiếp tục",
+  "decision_v2": "Tiếp tục",
   "three_lines": {
-    "environment_assumption": "",
-    "reduce_or_prevent": "",
-    "measure_in_pilot": ""
+    "environment_assumption": "Hạ tầng API của nhà cung cấp LLM bên thứ ba luôn duy trì độ sẵn sàng cao, không bị lỗi nghẽn tải (429 Rate Limit) trong giờ cao điểm siêu sale, và lưu lượng khiếu nại của khách hàng được phân bổ đồng đều theo thời gian thay vì dồn gấp 3 lần vào ban đêm.",
+    "reduce_or_prevent": "Trên các bộ thử đã chạy, write_gate đưa hoàn sai và lỗi hãng oan về 0; cổng vận hành hạ trần hoàn tự động ngày sale xuống 300.000đ, sau sửa S4 ghi nhận 292.000đ. Chưa chứng minh loại bỏ mọi rủi ro ngoài bộ thử hoặc qua test ẩn.",
+    "measure_in_pilot": "Cần đo đạc chính xác thời gian thao tác duyệt thực tế của reviewer trên giao diện web CSKH khi có decision_note, tỷ lệ lỗi 429 thực tế của nhà cung cấp LLM theo từng khung giờ trong ngày, và độ hài lòng của khách hàng (CSAT) khi nhận được giải thích từ chối hoàn tiền."
   }
 }

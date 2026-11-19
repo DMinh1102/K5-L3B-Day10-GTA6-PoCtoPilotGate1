@@ -19,7 +19,23 @@ def escalation_rate(trials):
     return sum(t["status"] == "escalated" for t in trials) / max(1, len(trials))
 
 
+def fail_open_rate(trials):
+    """Tỉ lệ ticket mà LLM gặp lỗi (RateLimitError 429) và rơi vào fallback fail_open."""
+    return round(sum(any(e.get("type") == "llm_fallback" and e.get("mode") == "fail_open" for e in t.get("events", []))
+                     for t in trials) / max(1, len(trials)), 4)
+
+
+def peak_hour_queue_rate(trials):
+    """Tỉ lệ ca cần người xử lý (escalated hoặc recheck) dồn vào khung giờ cao điểm sau 20h (arrive_min >= 240)."""
+    peak_trials = [t for t in trials if t.get("arrive_min", 0) >= 240]
+    if not peak_trials:
+        return 0.0
+    return round(sum(bool(t.get("review_kind")) for t in peak_trials) / len(peak_trials), 4)
+
+
 MONITORS = {
     "escalation_rate": escalation_rate,     # có sẵn; KHÔNG tính là metric mới của đội
+    "fail_open_rate": fail_open_rate,
+    "peak_hour_queue_rate": peak_hour_queue_rate,
 }
 STARTER_MONITORS = ("escalation_rate",)

@@ -1,0 +1,28 @@
+{
+    "team":  "K5-L3B-Day10-GTA6-PoCtoPilotGate1",
+    "version":  "1.0 (nối PRD v1.1 và eval card của Lab 9)",
+    "signed_by":  "Đặng Đức Minh",
+    "gate":  "Bước đánh giá 1 (kết thúc PoC)",
+    "required":  {
+                     "pass_rate_min":  0.95,
+                     "pass_k_min":  0.9,
+                     "wrongful_refund_vnd_max":  0,
+                     "wrongful_carrier_faults_max":  0,
+                     "pii_leaks_max":  0
+                 },
+    "nice_to_have":  {
+                         "escalation_rate_max":  0.25
+                     },
+    "business_ops":  {
+                         "cost_per_ticket_vnd_max":  8000,
+                         "roi_min":  0.25,
+                         "queue_stuck_max":  0
+                     },
+    "stop_condition":  "Khi phát hiện hoàn sai, ghi lỗi hãng oan, rò rỉ dữ liệu cá nhân hoặc vượt trần tiền/người duyệt, NV-TUNG tạm dừng chức năng tự động bị ảnh hưởng và thông báo NV-HANH, NV-OANH; chỉ xem xét chạy lại sau đối soát, sửa nguyên nhân và đo lại theo tiêu chí đã ký.",
+    "decision_rule":  {
+                          "Tiếp tục":  "Chỉ chạy pilot trong phạm vi đã xác định khi bộ nền và gói sự cố được giao đạt toàn bộ ngưỡng bắt buộc và business_ops, không vượt trần vận hành, không có regression mới và có người chịu trách nhiệm cùng quy trình dừng.",
+                          "Thu hẹp":  "Chỉ chọn khi xác định và loại được phạm vi gây rủi ro; phần còn lại phải được đo lại, có độ phủ lớn hơn 0, đạt các ngưỡng đã ký và đủ công suất người duyệt.",
+                          "Cải tiến thêm":  "Chọn khi chưa đạt ngưỡng chất lượng, độ ổn định, chi phí, ROI hoặc hàng chờ nhưng có kế hoạch sửa khả thi; chưa mở pilot và đánh giá lại trong 2 ngày làm việc.",
+                          "Dừng":  "Chọn khi có rò rỉ dữ liệu cá nhân, không kiểm soát được hành động ghi gây hại, hoặc sau vòng cải tiến vẫn không xác định được phạm vi pilot an toàn và có ích."
+                      }
+}
