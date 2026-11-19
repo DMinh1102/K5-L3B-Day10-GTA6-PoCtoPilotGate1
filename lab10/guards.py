@@ -34,9 +34,39 @@ from .tools import Verdict
 
 
 def pre_guard(ctx):
+    # Cổng 1 (Vòng 1): Ghim phiên bản chính sách có hiệu lực tại ngày ctx.as_of (tránh dùng index_active bị drift)
+    policies = ctx.tools.lookup_policies()
+    pol = H.effective_policy(policies, ctx.as_of)
+    if pol:
+        return Verdict.allow(policy_id=pol["policy_id"])
     return Verdict.allow()
 
 
 def write_gate(ctx, action):
     # action = {"tool": "issue_refund", "ticket_id":..., "order_id":..., "amount_vnd":..., "payer":..., ...}
+    tool = action.get("tool")
+    order = ctx.tools.lookup_order(action.get("order_id"))
+    pol = H.effective_policy(ctx.tools.lookup_policies(), ctx.as_of)
+
+    if tool == "issue_refund":
+        if not order or not pol:
+            return Verdict.escalate("thiếu dữ liệu đơn hàng hoặc chính sách")
+        parcel = H.ticket_parcel(order, ctx.ticket, ctx.as_of)
+        delay = H.db_delay_days(parcel, ctx.as_of)
+        entitled = H.entitlement_vnd(pol, order, delay, parcel.get("delay_cause"))
+
+        # Cổng 2 (Vòng 1): Chặn hoàn tiền vượt quá quyền lợi tính từ tracking DB (chống model override từ lời khai khách)
+        if action.get("amount_vnd", 0) > entitled:
+            return Verdict.deny("vượt quyền lợi theo tracking DB")
+
+    elif tool == "file_carrier_fault":
+        if not order or not pol:
+            return Verdict.deny("thiếu dữ liệu đơn hàng hoặc chính sách")
+        parcel = H.ticket_parcel(order, ctx.ticket, ctx.as_of)
+        delay = H.db_delay_days(parcel, ctx.as_of)
+
+        # Cổng 3 (Vòng 1): Kiểm tra điều kiện quy lỗi cho hãng theo tracking DB và chính sách
+        if not H.carrier_at_fault(pol, parcel, delay):
+            return Verdict.deny("không đủ điều kiện quy lỗi cho hãng theo tracking DB")
+
     return Verdict.allow()
